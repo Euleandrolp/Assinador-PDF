@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Assinar PDF</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#111827;--mu:#6b7280;--pr:#1d4ed8;--prt:#fff;--bd:#d1d5db;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--card:#1b1e25;--tx:#f3f4f6;--mu:#9ca3af;--pr:#3b82f6;--bd:#374151}}
+:root[data-theme="dark"]{--bg:#0f1115;--card:#1b1e25;--tx:#f3f4f6;--mu:#9ca3af;--pr:#3b82f6;--bd:#374151}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:84px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+header b{font-size:17px}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:10px 14px;cursor:pointer}
+.btn{display:inline-block;border:1px solid var(--bd);border-radius:10px;padding:10px 14px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.vh{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+button.p,.btn.p{background:var(--pr);color:var(--prt);border-color:var(--pr);font-weight:600}
+button.on{outline:3px solid var(--pr)}
+#empty{text-align:center;padding:48px 24px}
+#empty p{color:var(--mu)}
+#empty .btn{font-size:18px;padding:16px 26px}
+#pages{padding:8px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.pg{position:relative;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25);max-width:100%}
+.pg canvas{display:block;width:100%;height:100%}
+.ov{position:absolute;inset:0}
+.fw{position:absolute;margin:0;padding:0 3px;font-family:Helvetica,Arial,sans-serif;color:#000;background:rgba(59,130,246,.13);border:1px solid rgba(37,99,235,.5);border-radius:2px;outline:none;resize:none;line-height:1.15}
+.fw:focus{background:rgba(255,255,255,.95);border-color:#1d4ed8;box-shadow:0 0 0 2px rgba(29,78,216,.35);z-index:3}
+.fc{position:absolute;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,.13);border:1px solid rgba(37,99,235,.6);color:#000;font-weight:700;font-family:Arial,sans-serif;cursor:pointer;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.fc.r{border-radius:50%}
+.fs{position:absolute;display:flex;align-items:center;justify-content:center;border:1.5px dashed #1d4ed8;background:rgba(59,130,246,.10);color:#1d4ed8;font:600 12px system-ui,sans-serif;cursor:pointer;text-align:center;overflow:hidden}
+.it{position:absolute;touch-action:none;cursor:move;color:#000;white-space:pre;line-height:1.2;font-family:Helvetica,Arial,sans-serif;z-index:2}
+.it img{display:block;width:100%;pointer-events:none}
+.it.s{outline:2px dashed var(--pr);outline-offset:2px}
+.it .x{position:absolute;top:-14px;right:-14px;width:28px;height:28px;border-radius:50%;background:#dc2626;color:#fff;border:0;padding:0;font-size:16px;line-height:28px;text-align:center}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--bd);z-index:6}
+nav button{flex:1;padding:12px 2px;font-size:13px}
+#hint{position:fixed;left:8px;right:8px;bottom:calc(76px + env(safe-area-inset-bottom,0px));background:#111827;color:#fff;border-radius:10px;padding:8px 12px;font-size:14px;z-index:6;text-align:center;display:none}
+#toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;z-index:30;display:none;max-width:90%;text-align:center}
+.m{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:20;display:none;align-items:flex-end;justify-content:center}
+.m.o{display:flex}
+.sh{background:var(--card);width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:16px;max-height:85vh;overflow:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.sh h3{margin:0 0 10px}
+.row{display:flex;gap:8px;margin-top:12px}
+.row button{flex:1}
+textarea.t{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx)}
+#sp{width:100%;height:200px;background:#fff;border:1px solid var(--bd);border-radius:10px;touch-action:none;display:block}
+.sz{display:flex;align-items:center;gap:10px;margin-top:10px}
+.sz button{padding:6px 14px}
+</style>
+</head>
+<body>
+<header><b>Assinar PDF</b><label for="file" class="btn p">Abrir PDF</label></header>
+<input type="file" id="file" accept="application/pdf" class="vh">
+<div id="empty">
+  <h2>Assine e preencha PDFs no celular</h2>
+  <p>Toque direto nos campos do documento para escrever, marque as caixinhas com um toque e assine. Tudo é feito no seu aparelho: o arquivo não é enviado para nenhum servidor.</p>
+  <label for="file" class="btn p">Escolher PDF</label>
+</div>
+<div id="pages"></div>
+<div id="hint"></div>
+<div id="toast"></div>
+<nav id="bar" hidden>
+  <button id="bT">✎ Texto</button>
+  <button id="bX">✗ Marcar</button>
+  <button id="bS">✍ Assinar</button>
+  <button id="bU">↶ Desfazer</button>
+  <button id="bV" class="p">Salvar</button>
+</nav>
+
+<div class="m" id="mT"><div class="sh">
+  <h3>Texto livre</h3>
+  <textarea class="t" id="tx" rows="3" placeholder="Digite o texto"></textarea>
+  <div class="sz"><span>Tamanho</span><button id="sm">−</button><b id="sv">12</b><button id="sp2">+</button></div>
+  <div class="row"><button id="tc">Cancelar</button><button id="tok" class="p">Colocar</button></div>
+</div></div>
+
+<div class="m" id="mS"><div class="sh">
+  <h3>Desenhe sua assinatura</h3>
+  <canvas id="sp"></canvas>
+  <div class="row"><button id="sc">Cancelar</button><button id="sl">Limpar</button><button id="sok" class="p">Usar</button></div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+let bytes=null,name='documento.pdf',doc=null,P=[],items=[],sig=null,mode=null,size=12,F={},vals={},sel=null,pend=null,pendSig=null,dl=null,nw=0;
+
+/* salvar arquivo: navegador (download) ou app Capacitor (Filesystem + Share) */
+async function saveFile(filename,data){
+  const C=window.Capacitor;
+  if(C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins&&C.Plugins.Filesystem){
+    let b='';const ch=0x8000;
+    for(let i=0;i<data.length;i+=ch)b+=String.fromCharCode.apply(null,data.subarray(i,i+ch));
+    const r=await C.Plugins.Filesystem.writeFile({path:filename,data:btoa(b),directory:'CACHE'});
+    if(C.Plugins.Share)await C.Plugins.Share.share({title:filename,url:r.uri});
+    return{status:'saved'};
+  }
+  const url=URL.createObjectURL(new Blob([data],{type:'application/pdf'}));
+  const a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  return{status:'saved'};
+}
+dl={save:o=>saveFile(o.filename,o.data)};
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+
+function toast(t,ms=2800){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',ms)}
+function hint(t){const h=$('#hint');if(t){h.textContent=t;h.style.display='block'}else h.style.display='none'}
+
+$('#file').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    name=f.name;bytes=new Uint8Array(await f.arrayBuffer());
+    if(!window.pdfjsLib||!window.PDFLib){toast('Não consegui carregar as bibliotecas de PDF. Verifique a internet e recarregue.',5000);return}
+    toast('Abrindo…');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    doc=await pdfjsLib.getDocument({data:bytes.slice()}).promise;
+    items=[];vals={};sel=null;setMode(null);
+    await readFields();
+    await render();
+    $('#empty').style.display='none';$('#bar').hidden=false;
+    toast(nw?'Toque nos campos azuis para preencher, direto na folha.':'Este PDF não tem campos. Use Texto, Marcar ou Assinar e toque onde quiser.',4500);
+  }catch(err){console.error(err);toast('Não consegui abrir este PDF.')}
+};
+
+async function readFields(){
+  F={};
+  try{
+    const d=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
+    for(const f of d.getForm().getFields()){
+      const o={name:f.getName()};
+      if(f instanceof PDFLib.PDFTextField){o.t='text';o.v=f.getText()||''}
+      else if(f instanceof PDFLib.PDFCheckBox){o.t='check';o.v=f.isChecked()}
+      else if(f instanceof PDFLib.PDFDropdown||f instanceof PDFLib.PDFOptionList){o.t='sel';o.o=f.getOptions();o.v=(f.getSelected()||[])[0]||''}
+      else if(f instanceof PDFLib.PDFRadioGroup){o.t='radio';o.o=f.getOptions();o.v=f.getSelected()||''}
+      else continue;
+      F[o.name]=o;
+    }
+  }catch(e){console.warn(e)}
+}
+const val=n=>n in vals?vals[n]:(F[n]?F[n].v:'');
+
+async function render(){
+  const box=$('#pages');box.innerHTML='';P=[];nw=0;
+  const W=Math.min(box.clientWidth-16,900),dpr=Math.min(window.devicePixelRatio||1,2);
+  for(let i=1;i<=doc.numPages;i++){
+    const pg=await doc.getPage(i),v1=pg.getViewport({scale:1}),s=W/v1.width;
+    const vp=pg.getViewport({scale:s*dpr});
+    const w=document.createElement('div');w.className='pg';w.style.width=W+'px';w.style.height=(v1.height*s)+'px';
+    const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;
+    const ov=document.createElement('div');ov.className='ov';
+    w.append(c,ov);box.append(w);
+    let ws=[];
+    try{
+      const an=await pg.getAnnotations({intent:'display'});
+      ws=an.filter(a=>a.subtype==='Widget'&&!a.readOnly&&!a.pushButton&&a.fieldName).map(a=>{
+        const r=v1.convertToViewportRectangle(a.rect);
+        return{a,x:Math.min(r[0],r[2]),y:Math.min(r[1],r[3]),w:Math.abs(r[2]-r[0]),h:Math.abs(r[3]-r[1])};
+      });
+    }catch(e){console.warn(e)}
+    P[i-1]={s,w:v1.width,h:v1.height,ov,ws};
+    ov.addEventListener('click',ev=>{if(ev.target===ov)tap(i-1,ev)});
+    await pg.render({canvasContext:c.getContext('2d'),viewport:vp,annotationMode:2}).promise;
+    widgets(i-1);nw+=ws.length;
+  }
+  draw();
+}
+
+function widgets(pi){
+  const p=P[pi],s=p.s;
+  p.ws.forEach(o=>{
+    const a=o.a,n=a.fieldName;let el;
+    if(a.fieldType==='Sig'){
+      el=document.createElement('div');el.className='fs';el.textContent='✍ Toque para assinar';
+      el.onclick=()=>{if(!sig){pendSig={p:pi,o};openSig()}else placeIn(pi,o)};
+    }else if(a.fieldType==='Btn'&&(a.checkBox||a.radioButton)){
+      if(!F[n])F[n]={t:a.radioButton?'radio':'check',v:a.radioButton?((a.fieldValue&&a.fieldValue!=='Off')?a.fieldValue:''):!!(a.fieldValue&&a.fieldValue!=='Off')};
+      const rad=!!a.radioButton;
+      el=document.createElement('div');el.className='fc'+(rad?' r':'');
+      el.style.fontSize=Math.max(8,Math.min(o.w,o.h)*s*.95)+'px';
+      const on=()=>rad?val(n)===a.buttonValue:!!val(n);
+      el._p=()=>{el.textContent=on()?(rad?'●':'✓'):''};el._p();
+      el.onclick=()=>{
+        if(rad)vals[n]=(val(n)===a.buttonValue)?'':a.buttonValue;else vals[n]=!on();
+        document.querySelectorAll('.fc').forEach(e=>{if(e.dataset.n===n)e._p()});
+      };
+    }else if(a.fieldType==='Ch'){
+      if(!F[n])F[n]={t:'sel',v:(Array.isArray(a.fieldValue)?a.fieldValue[0]:a.fieldValue)||''};
+      const ops=F[n].o||(a.options||[]).map(x=>x.displayValue||x.exportValue);
+      el=document.createElement('select');el.className='fw';
+      el.innerHTML='<option value=""></option>'+ops.map(x=>'<option>'+String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</option>').join('');
+      el.value=val(n)||'';el.style.fontSize=Math.max(10,Math.min(o.h*s*.6,18))+'px';
+      el.onchange=()=>{vals[n]=el.value};
+    }else if(a.fieldType==='Tx'){
+      if(!F[n])F[n]={t:'text',v:a.fieldValue||''};
+      const ml=!!a.multiLine;
+      el=document.createElement(ml?'textarea':'input');if(!ml)el.type='text';el.className='fw';
+      el.value=val(n)||'';if(a.maxLen>0)el.maxLength=a.maxLen;
+      el.spellcheck=false;el.autocomplete='off';
+      el.style.fontSize=(ml?Math.min(15,Math.max(10,o.h*s*.12)):Math.max(10,Math.min(o.h*s*.62,20)))+'px';
+      el.oninput=()=>{vals[n]=el.value;document.querySelectorAll('.fw').forEach(e=>{if(e!==el&&e.dataset.n===n)e.value=el.value})};
+    }else return;
+    el.dataset.n=n;
+    el.style.left=o.x*s+'px';el.style.top=o.y*s+'px';el.style.width=o.w*s+'px';el.style.height=o.h*s+'px';
+    p.ov.append(el);
+  });
+}
+
+function placeIn(pi,o){
+  const w=Math.min(o.w,o.h/sig.r),h=w*sig.r;
+  const it={t:'sig',p:pi,x:o.x+(o.w-w)/2,y:o.y+(o.h-h)/2,w,h,img:sig.url};
+  items.push(it);sel=it;draw();
+}
+
+function draw(){
+  document.querySelectorAll('.it').forEach(e=>e.remove());
+  items.forEach(it=>{
+    const p=P[it.p];if(!p)return;const s=p.s;
+    const d=document.createElement('div');d.className='it'+(sel===it?' s':'');
+    d.style.left=it.x*s+'px';d.style.top=it.y*s+'px';
+    if(it.t==='text'){d.style.fontSize=it.size*s+'px';d.textContent=it.text}
+    else{d.style.width=it.w*s+'px';const im=new Image();im.src=it.img;d.append(im)}
+    if(sel===it){const x=document.createElement('button');x.className='x';x.textContent='✕';
+      x.onpointerdown=e=>e.stopPropagation();
+      x.onclick=e=>{e.stopPropagation();items=items.filter(a=>a!==it);sel=null;draw()};d.append(x)}
+    let sx,sy,ox,oy,mv=false;
+    d.onpointerdown=e=>{if(e.target.classList.contains('x'))return;d.setPointerCapture(e.pointerId);sx=e.clientX;sy=e.clientY;ox=it.x;oy=it.y;mv=false};
+    d.onpointermove=e=>{if(sx===undefined)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)>4)mv=true;if(!mv)return;it.x=ox+dx/s;it.y=oy+dy/s;d.style.left=it.x*s+'px';d.style.top=it.y*s+'px'};
+    d.onpointerup=()=>{sx=undefined;if(!mv){sel=sel===it?null:it;draw()}};
+    p.ov.append(d);
+  });
+}
+
+function setMode(m){
+  mode=m;['T','X','S'].forEach(k=>$('#b'+k).classList.toggle('on',m==={T:'text',X:'x',S:'sig'}[k]));
+  hint({text:'Toque no documento onde quer escrever',x:'Toque no documento onde quer colocar o X',sig:'Toque no documento para colocar a assinatura'}[m]||'');
+}
+$('#bT').onclick=()=>setMode(mode==='text'?null:'text');
+$('#bX').onclick=()=>setMode(mode==='x'?null:'x');
+$('#bS').onclick=()=>{if(mode==='sig'){setMode(null);return}if(sig)setMode('sig');else openSig()};
+$('#bU').onclick=()=>{items.pop();sel=null;draw()};
+
+function tap(p,ev){
+  const r=P[p].ov.getBoundingClientRect(),s=P[p].s;
+  const x=(ev.clientX-r.left)/s,y=(ev.clientY-r.top)/s;
+  if(sel){sel=null;draw();if(!mode)return}
+  if(mode==='text'){pend={p,x,y};$('#tx').value='';$('#mT').classList.add('o');setTimeout(()=>$('#tx').focus(),50)}
+  else if(mode==='x'){const it={t:'text',p,x:x-5,y:y-7,text:'X',size:14};items.push(it);sel=it;draw()}
+  else if(mode==='sig'&&sig){const w=Math.min(150,P[p].w*.4),h=w*sig.r;
+    const it={t:'sig',p,x:Math.max(0,x-w/2),y:Math.max(0,y-h/2),w,h,img:sig.url};items.push(it);sel=it;draw()}
+}
+
+$('#sm').onclick=()=>{size=Math.max(8,size-1);$('#sv').textContent=size};
+$('#sp2').onclick=()=>{size=Math.min(36,size+1);$('#sv').textContent=size};
+$('#tc').onclick=()=>$('#mT').classList.remove('o');
+$('#tok').onclick=()=>{
+  const t=$('#tx').value.replace(/\s+$/,'');$('#mT').classList.remove('o');
+  if(!t||!pend)return;
+  const it={t:'text',p:pend.p,x:pend.x,y:pend.y,text:t,size};items.push(it);sel=it;draw();
+};
+
+/* assinatura */
+const sc=$('#sp'),sx=sc.getContext('2d');let drawing=false,box=null,hasInk=false;
+function sizeSig(){const r=sc.getBoundingClientRect();sc.width=r.width*2;sc.height=r.height*2;sx.lineWidth=5;sx.lineCap='round';sx.lineJoin='round';sx.strokeStyle='#10196b';box=null;hasInk=false}
+function openSig(){$('#mS').classList.add('o');sizeSig()}
+function pt(e){const r=sc.getBoundingClientRect();return[(e.clientX-r.left)*2,(e.clientY-r.top)*2]}
+sc.onpointerdown=e=>{sc.setPointerCapture(e.pointerId);drawing=true;const[x,y]=pt(e);sx.beginPath();sx.moveTo(x,y);sx.lineTo(x+.1,y+.1);sx.stroke();grow(x,y)};
+sc.onpointermove=e=>{if(!drawing)return;const[x,y]=pt(e);sx.lineTo(x,y);sx.stroke();grow(x,y)};
+sc.onpointerup=sc.onpointercancel=()=>{drawing=false};
+function grow(x,y){hasInk=true;if(!box)box=[x,y,x,y];else{box[0]=Math.min(box[0],x);box[1]=Math.min(box[1],y);box[2]=Math.max(box[2],x);box[3]=Math.max(box[3],y)}}
+$('#sl').onclick=sizeSig;
+$('#sc').onclick=()=>{pendSig=null;$('#mS').classList.remove('o')};
+$('#sok').onclick=()=>{
+  if(!hasInk){toast('Desenhe a assinatura primeiro.');return}
+  const m=8,x0=Math.max(0,box[0]-m),y0=Math.max(0,box[1]-m),w=Math.min(sc.width,box[2]+m)-x0,h=Math.min(sc.height,box[3]+m)-y0;
+  const t=document.createElement('canvas');t.width=w;t.height=h;t.getContext('2d').drawImage(sc,x0,y0,w,h,0,0,w,h);
+  sig={url:t.toDataURL('image/png'),r:h/w};$('#mS').classList.remove('o');
+  if(pendSig){placeIn(pendSig.p,pendSig.o);pendSig=null;setMode(null)}else setMode('sig');
+};
+
+/* salvar */
+const clean=t=>t.replace(/[^\n\u0020-\u007E\u00A0-\u00FF]/g,'?');
+$('#bV').onclick=async()=>{
+  if(!dl){toast('Salvar não está disponível neste modo de visualização.');return}
+  try{
+    toast('Gerando PDF…',8000);
+    const d=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
+    const font=await d.embedFont(PDFLib.StandardFonts.Helvetica);
+    const form=d.getForm();let falhas=0;
+    for(const[n,v]of Object.entries(vals)){
+      try{
+        const f=form.getField(n);
+        if(f instanceof PDFLib.PDFTextField)f.setText(clean(String(v)));
+        else if(f instanceof PDFLib.PDFCheckBox){v?f.check():f.uncheck()}
+        else if((f instanceof PDFLib.PDFDropdown||f instanceof PDFLib.PDFOptionList||f instanceof PDFLib.PDFRadioGroup)&&v)f.select(v);
+      }catch(e){falhas++;console.warn(n,e)}
+    }
+    try{form.updateFieldAppearances(font)}catch(e){}
+    const pgs=d.getPages(),img={};
+    for(const it of items){
+      const pg=pgs[it.p],H=pg.getHeight();
+      if(it.t==='text'){
+        pg.drawText(clean(it.text),{x:it.x,y:H-(it.y+it.size*.98),size:it.size,font,color:PDFLib.rgb(0,0,0),lineHeight:it.size*1.2});
+      }else{
+        img[it.img]=img[it.img]||await d.embedPng(it.img);
+        pg.drawImage(img[it.img],{x:it.x,y:H-it.y-it.h,width:it.w,height:it.h});
+      }
+    }
+    const out=await d.save();
+    const r=await dl.save({filename:name.replace(/\.pdf$/i,'')+'-assinado.pdf',data:out});
+    toast(falhas?'PDF salvo, mas '+falhas+' campo(s) não puderam ser gravados.':(r.status==='saved'?'PDF salvo!':'PDF enviado.'),4000);
+  }catch(e){
+    console.error(e);
+    if(e&&e.code==='declined')toast('Salvamento cancelado.');
+    else toast('Erro ao gerar o PDF. Se ele for protegido, não é possível editar.',4500);
+  }
+};
+
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(doc)render()},300)});
+</script>
+</body>
+</html>
