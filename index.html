@@ -326,7 +326,12 @@ $('#bV').onclick=async()=>{
   }
 };
 
-let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(doc)render()},300)});
+let rt,lw=innerWidth;
+addEventListener('resize',()=>{
+  if(innerWidth===lw)return;            /* teclado abrindo só muda a altura: não redesenhar */
+  const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;
+  lw=innerWidth;clearTimeout(rt);rt=setTimeout(()=>{if(doc)render()},300);
+});
 </script>
 </body>
 </html>
