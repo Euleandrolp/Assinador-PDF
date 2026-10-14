@@ -41,6 +41,10 @@ button.on{outline:3px solid var(--pr)}
 .it img{display:block;width:100%;pointer-events:none}
 .it.s{outline:2px dashed var(--pr);outline-offset:2px}
 .it .x{position:absolute;top:-14px;right:-14px;width:28px;height:28px;border-radius:50%;background:#dc2626;color:#fff;border:0;padding:0;font-size:16px;line-height:28px;text-align:center}
+.it .rz{position:absolute;right:-18px;bottom:-18px;width:34px;height:34px;border-radius:50%;background:var(--pr);border:3px solid #fff;touch-action:none;padding:0}
+#sb{position:fixed;left:8px;right:8px;bottom:calc(124px + env(safe-area-inset-bottom,0px));display:none;gap:8px;z-index:7}
+#sb button{flex:1;padding:12px 4px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+#sb .d{color:#dc2626}
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--bd);z-index:6}
 nav button{flex:1;padding:12px 2px;font-size:13px}
 #hint{position:fixed;left:8px;right:8px;bottom:calc(76px + env(safe-area-inset-bottom,0px));background:#111827;color:#fff;border-radius:10px;padding:8px 12px;font-size:14px;z-index:6;text-align:center;display:none}
@@ -67,6 +71,7 @@ textarea.t{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);borde
 </div>
 <div id="pages"></div>
 <div id="hint"></div>
+<div id="sb"><button id="sMinus">− Menor</button><button id="sPlus">+ Maior</button><button id="sDel" class="d">🗑 Apagar</button></div>
 <div id="toast"></div>
 <nav id="bar" hidden>
   <button id="bT">✎ Texto</button>
@@ -86,6 +91,7 @@ textarea.t{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);borde
 <div class="m" id="mS"><div class="sh">
   <h3>Desenhe sua assinatura</h3>
   <canvas id="sp"></canvas>
+  <div class="row"><button id="sprev" style="display:none">↺ Usar a assinatura anterior</button></div>
   <div class="row"><button id="sc">Cancelar</button><button id="sl">Limpar</button><button id="sok" class="p">Usar</button></div>
 </div></div>
 
@@ -94,6 +100,7 @@ textarea.t{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);borde
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
+let ptrs=new Map(),pinching=false,wasPinch=false,pin=null,resizing=false;
 let bytes=null,name='documento.pdf',doc=null,P=[],items=[],sig=null,mode=null,size=12,F={},vals={},sel=null,pend=null,pendSig=null,dl=null,nw=0;
 
 /* salvar arquivo: navegador (download) ou app Capacitor (Filesystem + Share) */
@@ -182,7 +189,7 @@ function widgets(pi){
     const a=o.a,n=a.fieldName;let el;
     if(a.fieldType==='Sig'){
       el=document.createElement('div');el.className='fs';el.textContent='✍ Toque para assinar';
-      el.onclick=()=>{if(!sig){pendSig={p:pi,o};openSig()}else placeIn(pi,o)};
+      el.onclick=()=>{pendSig={p:pi,o};openSig()};
     }else if(a.fieldType==='Btn'&&(a.checkBox||a.radioButton)){
       if(!F[n])F[n]={t:a.radioButton?'radio':'check',v:a.radioButton?((a.fieldValue&&a.fieldValue!=='Off')?a.fieldValue:''):!!(a.fieldValue&&a.fieldValue!=='Off')};
       const rad=!!a.radioButton;
@@ -222,24 +229,62 @@ function placeIn(pi,o){
   items.push(it);sel=it;draw();
 }
 
+const snap=it=>({x:it.x,y:it.y,w:it.w,h:it.h,size:it.size});
+function sty(it,d,s){
+  d.style.left=it.x*s+'px';d.style.top=it.y*s+'px';
+  if(it.t==='text')d.style.fontSize=it.size*s+'px';else d.style.width=it.w*s+'px';
+}
+function scaleIt(it,k,base){
+  if(it.t==='sig'){
+    const w=Math.max(20,Math.min(P[it.p].w,base.w*k)),r=base.h/base.w;
+    const cx=base.x+base.w/2,cy=base.y+base.h/2;
+    it.w=w;it.h=w*r;it.x=cx-w/2;it.y=cy-it.h/2;
+  }else it.size=Math.max(6,Math.min(72,base.size*k));
+}
 function draw(){
   document.querySelectorAll('.it').forEach(e=>e.remove());
+  $('#sb').style.display=sel?'flex':'none';
+  $('#pages').style.touchAction=sel?'pan-x pan-y':'auto';
   items.forEach(it=>{
     const p=P[it.p];if(!p)return;const s=p.s;
     const d=document.createElement('div');d.className='it'+(sel===it?' s':'');
-    d.style.left=it.x*s+'px';d.style.top=it.y*s+'px';
-    if(it.t==='text'){d.style.fontSize=it.size*s+'px';d.textContent=it.text}
-    else{d.style.width=it.w*s+'px';const im=new Image();im.src=it.img;d.append(im)}
-    if(sel===it){const x=document.createElement('button');x.className='x';x.textContent='✕';
+    if(it.t==='text')d.textContent=it.text;else{const im=new Image();im.src=it.img;d.append(im)}
+    sty(it,d,s);
+    if(sel===it){
+      const x=document.createElement('button');x.className='x';x.textContent='✕';
       x.onpointerdown=e=>e.stopPropagation();
-      x.onclick=e=>{e.stopPropagation();items=items.filter(a=>a!==it);sel=null;draw()};d.append(x)}
+      x.onclick=e=>{e.stopPropagation();items=items.filter(a=>a!==it);sel=null;draw()};
+      const rz=document.createElement('button');rz.className='rz';
+      let bs=null,w0=1,x0=0;
+      rz.onpointerdown=e=>{e.stopPropagation();rz.setPointerCapture(e.pointerId);bs=snap(it);w0=d.offsetWidth||1;x0=e.clientX;resizing=true};
+      rz.onpointermove=e=>{if(!bs)return;scaleIt(it,Math.max(.2,(w0+(e.clientX-x0))/w0),bs);sty(it,d,s)};
+      rz.onpointerup=rz.onpointercancel=()=>{bs=null;resizing=false};
+      d.append(x,rz);
+    }
     let sx,sy,ox,oy,mv=false;
-    d.onpointerdown=e=>{if(e.target.classList.contains('x'))return;d.setPointerCapture(e.pointerId);sx=e.clientX;sy=e.clientY;ox=it.x;oy=it.y;mv=false};
-    d.onpointermove=e=>{if(sx===undefined)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)>4)mv=true;if(!mv)return;it.x=ox+dx/s;it.y=oy+dy/s;d.style.left=it.x*s+'px';d.style.top=it.y*s+'px'};
-    d.onpointerup=()=>{sx=undefined;if(!mv){sel=sel===it?null:it;draw()}};
+    d.onpointerdown=e=>{if(e.target.classList.contains('x')||e.target.classList.contains('rz'))return;d.setPointerCapture(e.pointerId);sx=e.clientX;sy=e.clientY;ox=it.x;oy=it.y;mv=false};
+    d.onpointermove=e=>{if(sx===undefined||pinching||resizing)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)>4)mv=true;if(!mv)return;it.x=ox+dx/s;it.y=oy+dy/s;sty(it,d,s)};
+    d.onpointerup=()=>{sx=undefined;if(!mv&&!wasPinch&&!resizing){sel=sel===it?null:it;draw()}};
     p.ov.append(d);
   });
 }
+
+/* pinça com dois dedos: aumenta/diminui o item selecionado */
+addEventListener('pointerdown',e=>{
+  if(ptrs.size===0)wasPinch=false;
+  ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+  if(ptrs.size===2&&sel){const[a,b]=[...ptrs.values()];pinching=wasPinch=true;pin={d0:Math.hypot(a[0]-b[0],a[1]-b[1])||1,base:snap(sel)}}
+},true);
+addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+  if(pinching&&sel&&ptrs.size>=2){const[a,b]=[...ptrs.values()];scaleIt(sel,Math.hypot(a[0]-b[0],a[1]-b[1])/pin.d0,pin.base);draw()}
+},true);
+const pup=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinching=false};
+addEventListener('pointerup',pup,true);addEventListener('pointercancel',pup,true);
+
+$('#sMinus').onclick=()=>{if(sel){scaleIt(sel,.85,snap(sel));draw()}};
+$('#sPlus').onclick=()=>{if(sel){scaleIt(sel,1.18,snap(sel));draw()}};
+$('#sDel').onclick=()=>{if(sel){items=items.filter(a=>a!==sel);sel=null;draw()}};
 
 function setMode(m){
   mode=m;['T','X','S'].forEach(k=>$('#b'+k).classList.toggle('on',m==={T:'text',X:'x',S:'sig'}[k]));
@@ -247,7 +292,7 @@ function setMode(m){
 }
 $('#bT').onclick=()=>setMode(mode==='text'?null:'text');
 $('#bX').onclick=()=>setMode(mode==='x'?null:'x');
-$('#bS').onclick=()=>{if(mode==='sig'){setMode(null);return}if(sig)setMode('sig');else openSig()};
+$('#bS').onclick=()=>{pendSig=null;openSig()};
 $('#bU').onclick=()=>{items.pop();sel=null;draw()};
 
 function tap(p,ev){
@@ -256,8 +301,8 @@ function tap(p,ev){
   if(sel){sel=null;draw();if(!mode)return}
   if(mode==='text'){pend={p,x,y};$('#tx').value='';$('#mT').classList.add('o');setTimeout(()=>$('#tx').focus(),50)}
   else if(mode==='x'){const it={t:'text',p,x:x-5,y:y-7,text:'X',size:14};items.push(it);sel=it;draw()}
-  else if(mode==='sig'&&sig){const w=Math.min(150,P[p].w*.4),h=w*sig.r;
-    const it={t:'sig',p,x:Math.max(0,x-w/2),y:Math.max(0,y-h/2),w,h,img:sig.url};items.push(it);sel=it;draw()}
+  else if(mode==='sig'&&sig){const w=Math.min(110,P[p].w*.3),h=w*sig.r;
+    const it={t:'sig',p,x:Math.max(0,x-w/2),y:Math.max(0,y-h/2),w,h,img:sig.url};items.push(it);sel=it;setMode(null);draw()}
 }
 
 $('#sm').onclick=()=>{size=Math.max(8,size-1);$('#sv').textContent=size};
@@ -272,7 +317,9 @@ $('#tok').onclick=()=>{
 /* assinatura */
 const sc=$('#sp'),sx=sc.getContext('2d');let drawing=false,box=null,hasInk=false;
 function sizeSig(){const r=sc.getBoundingClientRect();sc.width=r.width*2;sc.height=r.height*2;sx.lineWidth=5;sx.lineCap='round';sx.lineJoin='round';sx.strokeStyle='#10196b';box=null;hasInk=false}
-function openSig(){$('#mS').classList.add('o');sizeSig()}
+function openSig(){$('#mS').classList.add('o');sizeSig();$('#sprev').style.display=sig?'block':'none'}
+function useSig(){if(pendSig){placeIn(pendSig.p,pendSig.o);pendSig=null;setMode(null)}else setMode('sig')}
+$('#sprev').onclick=()=>{$('#mS').classList.remove('o');useSig()};
 function pt(e){const r=sc.getBoundingClientRect();return[(e.clientX-r.left)*2,(e.clientY-r.top)*2]}
 sc.onpointerdown=e=>{sc.setPointerCapture(e.pointerId);drawing=true;const[x,y]=pt(e);sx.beginPath();sx.moveTo(x,y);sx.lineTo(x+.1,y+.1);sx.stroke();grow(x,y)};
 sc.onpointermove=e=>{if(!drawing)return;const[x,y]=pt(e);sx.lineTo(x,y);sx.stroke();grow(x,y)};
@@ -285,7 +332,7 @@ $('#sok').onclick=()=>{
   const m=8,x0=Math.max(0,box[0]-m),y0=Math.max(0,box[1]-m),w=Math.min(sc.width,box[2]+m)-x0,h=Math.min(sc.height,box[3]+m)-y0;
   const t=document.createElement('canvas');t.width=w;t.height=h;t.getContext('2d').drawImage(sc,x0,y0,w,h,0,0,w,h);
   sig={url:t.toDataURL('image/png'),r:h/w};$('#mS').classList.remove('o');
-  if(pendSig){placeIn(pendSig.p,pendSig.o);pendSig=null;setMode(null)}else setMode('sig');
+  useSig();
 };
 
 /* salvar */
