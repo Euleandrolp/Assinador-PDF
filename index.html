@@ -104,6 +104,15 @@ textarea.t,input.t{width:100%;font:inherit;padding:10px;border:1px solid var(--b
   <div class="row"><button id="nc">Cancelar</button><button id="nok" class="p">Salvar</button></div>
 </div></div>
 
+<div class="m" id="mR"><div class="sh">
+  <h3>PDF pronto</h3>
+  <div style="font-size:13px;color:var(--mu);margin-bottom:4px">Nome do arquivo</div>
+  <input class="t" id="rn" type="text" autocomplete="off">
+  <div class="row"><button id="rShare" class="p">📤 Enviar (WhatsApp, Gmail…)</button></div>
+  <div class="row"><button id="rSave">💾 Salvar no celular</button></div>
+  <div class="row"><button id="rClose">Fechar</button></div>
+</div></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -126,14 +135,42 @@ async function saveFile(filename,data){
     try{await PI.save({name:filename,data:b64(data)});return{status:'saved'}}
     catch(e){if(/cancel/i.test(String(e&&e.message||e)))throw{code:'declined'};throw e}
   }
-  const nm=await askName(filename.replace(/\.pdf$/i,''));
-  if(nm===null)throw{code:'declined'};
-  const fn=okName(nm);
+  const fn=okName(filename);
   const url=URL.createObjectURL(new Blob([data],{type:'application/pdf'}));
   const a=document.createElement('a');a.href=url;a.download=fn;document.body.append(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),10000);
   return{status:'saved'};
 }
+/* enviar para outros apps (WhatsApp, Gmail...) */
+async function shareFile(filename,data){
+  const C=window.Capacitor;
+  if(C&&C.isNativePlatform&&C.isNativePlatform()){
+    const plug=n=>(C.Plugins&&C.Plugins[n])||C.registerPlugin(n);
+    const fs=plug('Filesystem'),sh=plug('Share');
+    const r=await fs.writeFile({path:filename,data:b64(data),directory:'CACHE'});
+    await sh.share({title:filename,url:r.uri,dialogTitle:'Enviar PDF'});
+    return;
+  }
+  const f=new File([data],filename,{type:'application/pdf'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:filename});return}
+  throw new Error('sem compartilhar');
+}
+let ready=null;
+function openReady(out,fn){
+  ready={out};$('#rn').value=fn.replace(/\.pdf$/i,'');$('#mR').classList.add('o');
+}
+$('#rClose').onclick=()=>$('#mR').classList.remove('o');
+$('#rShare').onclick=async()=>{
+  if(!ready)return;
+  try{await shareFile(okName($('#rn').value),ready.out)}
+  catch(e){const m=String(e&&e.message||e);if(/cancel|abort/i.test(m))return;
+    toast(m==='sem compartilhar'?'Este aparelho não permite enviar daqui. Use "Salvar" e envie o arquivo.':'Não consegui abrir o envio. Tente "Salvar".',4500)}
+};
+$('#rSave').onclick=async()=>{
+  if(!ready)return;
+  try{await dl.save({filename:okName($('#rn').value),data:ready.out});toast('PDF salvo!')}
+  catch(e){if(e&&e.code==='declined')toast('Salvamento cancelado.');else{console.error(e);toast('Não consegui salvar o PDF.',4000)}}
+};
 /* PDF enviado pelo Android ("Abrir com" / Compartilhar) */
 window.checkNativePdf=async()=>{
   if(!PI)return;
@@ -415,7 +452,6 @@ $('#sok').onclick=()=>{
 /* salvar */
 const clean=t=>t.replace(/[^\n\u0020-\u007E\u00A0-\u00FF]/g,'?');
 $('#bV').onclick=async()=>{
-  if(!dl){toast('Salvar não está disponível neste modo de visualização.');return}
   try{
     toast('Gerando PDF…',8000);
     const d=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
@@ -441,8 +477,8 @@ $('#bV').onclick=async()=>{
       }
     }
     const out=await d.save();
-    const r=await dl.save({filename:name.replace(/\.pdf$/i,'')+'-assinado.pdf',data:out});
-    toast(falhas?'PDF salvo, mas '+falhas+' campo(s) não puderam ser gravados.':(r.status==='saved'?'PDF salvo!':'PDF enviado.'),4000);
+    toast(falhas?'Atenção: '+falhas+' campo(s) não puderam ser gravados.':'PDF pronto!',3500);
+    openReady(out,name.replace(/\.pdf$/i,'')+'-assinado.pdf');
   }catch(e){
     console.error(e);
     if(e&&e.code==='declined')toast('Salvamento cancelado.');
