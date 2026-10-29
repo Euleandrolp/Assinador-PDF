@@ -57,7 +57,7 @@ nav button{flex:1;padding:12px 2px;font-size:13px}
 .sh h3{margin:0 0 10px}
 .row{display:flex;gap:8px;margin-top:12px}
 .row button{flex:1}
-textarea.t{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx)}
+textarea.t,input.t{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx)}
 #sp{width:100%;height:200px;background:#fff;border:1px solid var(--bd);border-radius:10px;touch-action:none;display:block}
 .sz{display:flex;align-items:center;gap:10px;margin-top:10px}
 .sz button{padding:6px 14px}
@@ -98,6 +98,12 @@ textarea.t{width:100%;font:inherit;padding:10px;border:1px solid var(--bd);borde
   <div class="row"><button id="sc">Cancelar</button><button id="sl">Limpar</button><button id="sok" class="p">Usar</button></div>
 </div></div>
 
+<div class="m" id="mN"><div class="sh">
+  <h3>Nome do arquivo</h3>
+  <input class="t" id="nm" type="text" autocomplete="off">
+  <div class="row"><button id="nc">Cancelar</button><button id="nok" class="p">Salvar</button></div>
+</div></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -106,21 +112,39 @@ const $=s=>document.querySelector(s);
 let Z=1,rid=0,zm=null,ptrs=new Map(),pinching=false,wasPinch=false,pin=null,resizing=false;
 let bytes=null,name='documento.pdf',doc=null,P=[],items=[],sig=null,mode=null,size=12,F={},vals={},sel=null,pend=null,pendSig=null,dl=null,nw=0;
 
-/* salvar arquivo: navegador (download) ou app Capacitor (Filesystem + Share) */
+/* salvar: no Android abre a janela "Salvar como" do sistema (nome e pasta); no navegador pergunta o nome */
+const PI=(()=>{try{const C=window.Capacitor;return C&&C.isNativePlatform&&C.isNativePlatform()?(C.registerPlugin?C.registerPlugin('PdfIntent'):(C.Plugins&&C.Plugins.PdfIntent)):null}catch(e){return null}})();
+const b64=u=>{let b='';const ch=0x8000;for(let i=0;i<u.length;i+=ch)b+=String.fromCharCode.apply(null,u.subarray(i,i+ch));return btoa(b)};
+const okName=n=>{n=(n||'').replace(/[\\/:*?"<>|]+/g,'_').trim();if(!n)n='documento-assinado';return /\.pdf$/i.test(n)?n:n+'.pdf'};
+function askName(def){return new Promise(res=>{
+  const m=$('#mN'),i=$('#nm');i.value=def;m.classList.add('o');setTimeout(()=>{i.focus();i.select()},60);
+  const done=v=>{m.classList.remove('o');res(v)};
+  $('#nok').onclick=()=>done(i.value);$('#nc').onclick=()=>done(null);
+})}
 async function saveFile(filename,data){
-  const C=window.Capacitor;
-  if(C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins&&C.Plugins.Filesystem){
-    let b='';const ch=0x8000;
-    for(let i=0;i<data.length;i+=ch)b+=String.fromCharCode.apply(null,data.subarray(i,i+ch));
-    const r=await C.Plugins.Filesystem.writeFile({path:filename,data:btoa(b),directory:'CACHE'});
-    if(C.Plugins.Share)await C.Plugins.Share.share({title:filename,url:r.uri});
-    return{status:'saved'};
+  if(PI){
+    try{await PI.save({name:filename,data:b64(data)});return{status:'saved'}}
+    catch(e){if(/cancel/i.test(String(e&&e.message||e)))throw{code:'declined'};throw e}
   }
+  const nm=await askName(filename.replace(/\.pdf$/i,''));
+  if(nm===null)throw{code:'declined'};
+  const fn=okName(nm);
   const url=URL.createObjectURL(new Blob([data],{type:'application/pdf'}));
-  const a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();
+  const a=document.createElement('a');a.href=url;a.download=fn;document.body.append(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),10000);
   return{status:'saved'};
 }
+/* PDF enviado pelo Android ("Abrir com" / Compartilhar) */
+window.checkNativePdf=async()=>{
+  if(!PI)return;
+  try{
+    const r=await PI.get();if(!r||!r.data)return;
+    const bin=atob(r.data),u=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    await openBytes(u,r.name||'documento.pdf');
+  }catch(e){console.warn(e)}
+};
+addEventListener('load',()=>setTimeout(()=>window.checkNativePdf(),400));
 dl={save:o=>saveFile(o.filename,o.data)};
 if('serviceWorker' in navigator&&location.protocol.startsWith('http')){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 
@@ -129,8 +153,11 @@ function hint(t){const h=$('#hint');if(t){h.textContent=t;h.style.display='block
 
 $('#file').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;
+  openBytes(new Uint8Array(await f.arrayBuffer()),f.name);
+};
+async function openBytes(u8,fname){
   try{
-    name=f.name;bytes=new Uint8Array(await f.arrayBuffer());
+    name=fname;bytes=u8;
     if(!window.pdfjsLib||!window.PDFLib){toast('Não consegui carregar as bibliotecas de PDF. Verifique a internet e recarregue.',5000);return}
     toast('Abrindo…');
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
