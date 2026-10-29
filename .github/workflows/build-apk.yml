@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,6 +26,10 @@ jobs:
           npx cap init "Assinar PDF" br.com.assinarpdf --web-dir=www
           npx cap add android
           npx cap sync android
+      - name: Abrir PDFs de fora do app e Salvar como
+        run: |
+          cp MainActivity.java PdfIntentPlugin.java android/app/src/main/java/br/com/assinarpdf/
+          python3 patch_manifest.py
       - name: Compilar
         run: cd android && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
